@@ -17,13 +17,16 @@ class DBFlex
     protected $search = [];
     protected $pdo;
 
-    public function __construct($dbhost, $dbuser, $dbpassword, $dbname) 
+    public function __construct($dbhost, $dbuser, $dbpassword, $dbname, $charset = "utf8") 
     {
-        $dsn = "mysql:host=$dbhost;dbname=$dbname;charset=utf8";
+        $dsn = "mysql:host=$dbhost;dbname=$dbname;charset=$charset";
         $this->pdo = new PDO($dsn, $dbuser, $dbpassword);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
 
+    public function dsn() {
+        return $this->pdo;
+    }
 
 
     public function startTransaction() 
@@ -63,7 +66,7 @@ class DBFlex
 
     public function orderBy($column, $direction = 'ASC')
     {
-        $this->orderBy = strtoupper($column) === 'RAND()' ? "ORDER BY RAND()" : "ORDER BY $column $direction";
+        $this->orderBy = $column == 'rand' ? "ORDER BY RAND()" : "ORDER BY $column $direction";
         return $this;
     }
 
@@ -72,6 +75,60 @@ class DBFlex
         $this->groupBy = "GROUP BY $column";
         return $this;
     }
+
+    public function last() {
+        $this->orderBy('id', 'DESC')->limit(1);
+        $result = $this->get();
+        return !empty($result) ? $result[0] : null;
+    }
+
+    public function has() {
+        $result = $this->get();
+        return !empty($result) ? true : false;
+    }
+
+    public function orWhere($col, $val, $oper = '=')
+    {
+        if (empty($this->where)) {
+            $this->where[] = "$col $oper ?";
+        } else {
+            $lastCondition = array_pop($this->where);
+            $this->where[] = "($lastCondition OR $col $oper ?)";
+        }
+    
+        $this->bindings[] = $val;
+        return $this;
+    }
+
+    public function aggregate($function, $col)
+     {
+        $sql = "SELECT $function($col) as aggregate FROM $this->table";
+
+        if(!empty($this->joins)) {
+            $sql .= " ".implode(' ', $this->joins);
+        }
+
+        if (!empty($this->search)) {
+            $conditions = array_merge($this->where, $this->search);
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        } else {
+
+            if(!empty($this->where)) {
+                $sql .= ' WHERE ' . implode(' AND ', $this->where);
+            }
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        foreach($this->bindings as $index => $val) {
+            $stmt->bindValue($index + 1, $val);
+        }
+
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $this->resetState();
+        return $result['aggregate'] ?? null;
+        
+     }
 
     public function search($columns, $value)
     {
@@ -158,8 +215,12 @@ class DBFlex
     {
         $sql = $this->rawSql ?: $this->buildSelectSql();
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->bindings);
 
+        foreach($this->bindings as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
+        }
+
+        $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $this->resetState();
         return $result;
@@ -179,8 +240,14 @@ class DBFlex
 
         $sql = "INSERT INTO $this->table ($columns) VALUES ($placeholders)";
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(array_values($data));
+        $i = 1;
 
+        foreach($data as $value) {
+            $stmt->bindValue($i, $value);
+            $i++;
+        }
+        
+        $stmt->execute();
         $this->resetState();
         return $this->pdo->lastInsertId();
     }
@@ -188,23 +255,45 @@ class DBFlex
     public function update($data)
     {
         $set = '';
-        $bindings = array_values($data);
+        // $bindings = array_values($data);
 
         foreach ($data as $column => $value) {
             $set .= "$column = ?, ";
         }
 
         $set = rtrim($set, ', ');
-        $bindings = array_merge($bindings, $this->bindings);
 
         $sql = "UPDATE $this->table SET $set";
 
-        if (!empty($this->where)) {
-            $sql .= ' WHERE ' . implode(' AND ', $this->where);
+        if (!empty($this->search)) {
+            $conditions = array_merge($this->where, $this->search);
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        } else {
+
+            if(!empty($this->where)) {
+                $sql .= ' WHERE ' . implode(' AND ', $this->where);
+            }
         }
 
+        // $bindings = array_merge($bindings, $this->bindings);
+
+
+
+
         $stmt = $this->pdo->prepare($sql);
-        $result = $stmt->execute($bindings);
+
+        $i = 1;
+        foreach($data as $value) {
+            $stmt->bindValue($i, $value);
+            $i++;
+        }
+
+        foreach($this->bindings as $value) {
+            $stmt->bindValue($i, $value);
+            $i++;
+        }
+
+        $result = $stmt->execute();
 
         $this->resetState();
         return $result;
@@ -214,12 +303,24 @@ class DBFlex
     {
         $sql = "DELETE FROM $this->table";
 
-        if (!empty($this->where)) {
-            $sql .= ' WHERE ' . implode(' AND ', $this->where);
+        if (!empty($this->search)) {
+            $conditions = array_merge($this->where, $this->search);
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        } else {
+
+            if(!empty($this->where)) {
+                $sql .= ' WHERE ' . implode(' AND ', $this->where);
+            }
         }
 
         $stmt = $this->pdo->prepare($sql);
-        $result = $stmt->execute($this->bindings);
+
+        $i = 1;
+        foreach($this->bindings as $value) {
+            $stmt->bindValue($i, $value);
+            $i++;
+        }
+        $result = $stmt->execute();
 
         $this->resetState();
         return $result;
@@ -244,7 +345,14 @@ class DBFlex
         }
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($this->bindings);
+
+        $i = 1;
+        foreach($this->bindings as $value) {
+            $stmt->bindValue($i, $value);
+            $i++;
+        }
+
+        $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $this->resetState();
