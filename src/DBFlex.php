@@ -25,7 +25,7 @@ class DBFlex
     }
 
     public function dsn() {
-        return $this->pdo;
+        return $this->pdo; # return the pdo object
     }
 
 

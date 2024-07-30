@@ -18,7 +18,7 @@ $data =  [
 
 
 $rows = $db->table('users')->where('id', 12, '>')->orWhere('id', 7, '<')->where('status', 0)->get();
-// echo print_r($rows);
+echo print_r($rows);
 foreach($rows as $row) 
 {
     echo $row['id']." ".$row['email']."<br>";
