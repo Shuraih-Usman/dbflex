@@ -11,7 +11,7 @@ $dbPath = 'sqlite.db';
 // Initialize the DB class with  SQLITE database credentials
 $db = new DBFlex('sqlite', null, null, null, null, $dbPath);
 
-//  Insert Datas
+//  Insert Data
 $data = ['name' => 'John Doe', 
 'email' => 'john@example.com'];
 $id = $db->table('users')->insert($data);
