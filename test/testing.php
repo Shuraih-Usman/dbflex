@@ -4,10 +4,14 @@
 require_once '/../src/DBFlex.php'; 
 
 
-// Initialize the DB class with  database credentials
-$db = new DBFlex('localhost', 'dbuser', 'dbpassword', 'test_db');
+// Initialize the DB class with  MYSQL database credentials
+$db = new DBFlex('mysql', 'localhost', 'dbuser', 'dbpassword', 'test_db');
 
-//  Insert Data
+$dbPath = 'sqlite.db';
+// Initialize the DB class with  SQLITE database credentials
+$db = new DBFlex('sqlite', null, null, null, null, $dbPath);
+
+//  Insert Datas
 $data = ['name' => 'John Doe', 
 'email' => 'john@example.com'];
 $id = $db->table('users')->insert($data);

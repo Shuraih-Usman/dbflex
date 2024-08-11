@@ -17,12 +17,19 @@ class DBFlex
     protected $search = [];
     protected $pdo;
 
-    public function __construct($dbhost, $dbuser, $dbpassword, $dbname, $charset = "utf8") 
+    public function __construct($driver, $dbhost = null, $dbuser = null, $dbpassword = null, $dbname = null, $dbpath = null) 
     {
-        $dsn = "mysql:host=$dbhost;dbname=$dbname;charset=$charset";
-        $this->pdo = new PDO($dsn, $dbuser, $dbpassword);
+        if ($driver === 'mysql') {
+            $dsn = "mysql:host=$dbhost;dbname=$dbname;charset=utf8";
+            $this->pdo = new PDO($dsn, $dbuser, $dbpassword);
+        } elseif ($driver === 'sqlite') {
+            $dsn = "sqlite:$dbpath";
+            $this->pdo = new PDO($dsn);
+        }
+    
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
+    
 
     public function dsn() {
         return $this->pdo; # return the pdo object

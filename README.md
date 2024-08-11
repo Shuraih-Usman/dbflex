@@ -28,7 +28,14 @@ Download the DBFlex library and include it in your project:
 
 ```
 require_once 'path/to/DBFlex.php';
-$db = new DBFlex('localhost', 'dbuser', 'dbpassword', 'test_db');
+// Initialize the DB class with  MYSQL database credentials
+$db = new DBFlex('mysql', 'localhost', 'dbuser', 'dbpassword', 'test_db');
+
+
+// Initialize the DB class with  SQLITE database credentials
+$dbPath = 'sqlite.db';
+$db = new DBFlex('sqlite', null, null, null, null, $dbPath);
+
 ```
 
 ### Insert Data
