@@ -216,6 +216,130 @@ if($db->table('users')->insert($data))
 }
 ```
 
+### Transaction Function
+
+```
+try {
+    $db->transaction(function($db) {
+        $db->table('accounts')->where('id', 1)->update(['balance' => 800]);
+        $db->table('accounts')->where('id', 2)->update(['balance' => 1200]);
+    });
+
+    echo "Transaction successful";
+} catch (Exception $e) {
+    echo "Transaction failed: " . $e->getMessage();
+}
+```
+
+### Execute and run SQL
+
+```
+$db->raw("UPDATE users SET name = ? WHERE id = ?", ['Ahmed', 1])->run();
+
+$db->execute("DELETE FROM users WHERE id = ?", [7]);
+```
+
+### find() Find row by ID
+
+```
+// default column is "id"
+$user = $db->table('users')->find(3);
+
+// you can define the column name
+$user = $db->table('users')->find(3, 'user_id');
+```
+
+### lastInsertId() get the last row Insert ID
+
+```
+// default column is "id"
+$id = $db->lastInsertId();
+
+
+```
+
+### Pluck() - Return values from a single column.
+```
+$emails = $db->table('users')->pluck('email');
+// ['test@gmail.com', 'admin@x.com', ...]
+```
+
+### exists() - Check if any record matches the condition..
+```
+$found = $db->table('users')->where('email', 'admin@x.com')->exists();
+// true or false
+```
+
+
+### doesntExist() - Inverse of exists().
+```
+$notFound = $db->table('users')->where('email', 'none@x.com')->doesntExist();
+// true or false
+```
+
+### value($column) - Get the value of a single column from the first result.
+```
+$name = $db->table('users')->where('id', 1)->value('name');
+// shuraihu
+```
+
+### increment($column, $amount = 1) - Increase a numeric field.
+```
+$db->table('products')->where('id', 5)->increment('stock', 10);
+```
+
+### decrement($column, $amount = 1) - Decrease a numeric field.
+```
+$db->table('products')->where('id', 5)->decrement('stock', 2);
+```
+
+### whereIn($column, array $values) - Filter by multiple values.
+```
+$admins = $db->table('users')->whereIn('role', ['admin', 'super'])->get();
+```
+
+### whereNotIn($column, array $values) - Opposite of whereIn.
+```
+$nonAdmins = $db->table('users')->whereNotIn('role', ['admin'])->get();
+
+```
+
+### truncate() - Empty the table.
+```
+$db->table('logs')->truncate();
+```
+
+### whereNull($column) - Filter where column IS NULL.
+```
+$noEmails = $db->table('users')->whereNull('email')->get();
+
+```
+
+### whereNotNull($column) - Filter where column IS NOT NULL.
+```
+$withEmails = $db->table('users')->whereNotNull('email')->get();
+
+```
+
+### firstOrFail() - Throws error if no result found.
+```
+$user = $db->table('users')->where('id', 999)->firstOrFail();
+
+```
+
+### toSql() - Returns the compiled SQL (for debugging).
+```
+$sql = $db->table('users')->where('name', 'Ali')->toSql();
+echo $sql;
+
+```
+### min('column'), max(), avg() - Get min, amx and average value, 
+```
+	$db->table('orders')->min('amount');
+    $db->table('orders')->max('amount');
+    $db->table('orders')->avg('amount');
+```
+
 ### Author
 - Shuraihu Usman
 - +2348140419490

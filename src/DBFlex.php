@@ -17,7 +17,7 @@ class DBFlex
     protected $search = [];
     protected $pdo;
 
-    public function __construct($driver, $dbhost = null, $dbuser = null, $dbpassword = null, $dbname = null, $dbpath = null) 
+    public function __construct($driver, $dbhost = null, $dbuser = null, $dbpassword = null, $dbname = null, $dbpath = null)
     {
         if ($driver === 'mysql') {
             $dsn = "mysql:host=$dbhost;dbname=$dbname;charset=utf8";
@@ -26,27 +26,28 @@ class DBFlex
             $dsn = "sqlite:$dbpath";
             $this->pdo = new PDO($dsn);
         }
-    
+
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
-    
 
-    public function dsn() {
+
+    public function dsn()
+    {
         return $this->pdo; # return the pdo object
     }
 
 
-    public function startTransaction() 
+    public function startTransaction()
     {
         $this->pdo->beginTransaction();
     }
 
-    public function commit() 
+    public function commit()
     {
         $this->pdo->commit();
     }
 
-    public function rollback() 
+    public function rollback()
     {
         $this->pdo->rollBack();
     }
@@ -83,13 +84,15 @@ class DBFlex
         return $this;
     }
 
-    public function last() {
+    public function last()
+    {
         $this->orderBy('id', 'DESC')->limit(1);
         $result = $this->get();
         return !empty($result) ? $result[0] : null;
     }
 
-    public function has() {
+    public function has()
+    {
         $result = $this->get();
         return !empty($result) ? true : false;
     }
@@ -102,17 +105,17 @@ class DBFlex
             $lastCondition = array_pop($this->where);
             $this->where[] = "($lastCondition OR $col $oper ?)";
         }
-    
+
         $this->bindings[] = $val;
         return $this;
     }
 
     public function aggregate($function, $col)
-     {
+    {
         $sql = "SELECT $function($col) as aggregate FROM $this->table";
 
-        if(!empty($this->joins)) {
-            $sql .= " ".implode(' ', $this->joins);
+        if (!empty($this->joins)) {
+            $sql .= " " . implode(' ', $this->joins);
         }
 
         if (!empty($this->search)) {
@@ -120,13 +123,13 @@ class DBFlex
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         } else {
 
-            if(!empty($this->where)) {
+            if (!empty($this->where)) {
                 $sql .= ' WHERE ' . implode(' AND ', $this->where);
             }
         }
 
         $stmt = $this->pdo->prepare($sql);
-        foreach($this->bindings as $index => $val) {
+        foreach ($this->bindings as $index => $val) {
             $stmt->bindValue($index + 1, $val);
         }
 
@@ -134,8 +137,7 @@ class DBFlex
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $this->resetState();
         return $result['aggregate'] ?? null;
-        
-     }
+    }
 
     public function search($columns, $value)
     {
@@ -198,7 +200,7 @@ class DBFlex
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         } else {
 
-            if(!empty($this->where)) {
+            if (!empty($this->where)) {
                 $sql .= ' WHERE ' . implode(' AND ', $this->where);
             }
         }
@@ -223,7 +225,7 @@ class DBFlex
         $sql = $this->rawSql ?: $this->buildSelectSql();
         $stmt = $this->pdo->prepare($sql);
 
-        foreach($this->bindings as $i => $val) {
+        foreach ($this->bindings as $i => $val) {
             $stmt->bindValue($i + 1, $val);
         }
 
@@ -232,6 +234,8 @@ class DBFlex
         $this->resetState();
         return $result;
     }
+
+
 
     public function first()
     {
@@ -249,11 +253,11 @@ class DBFlex
         $stmt = $this->pdo->prepare($sql);
         $i = 1;
 
-        foreach($data as $value) {
+        foreach ($data as $value) {
             $stmt->bindValue($i, $value);
             $i++;
         }
-        
+
         $stmt->execute();
         $this->resetState();
         return $this->pdo->lastInsertId();
@@ -277,7 +281,7 @@ class DBFlex
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         } else {
 
-            if(!empty($this->where)) {
+            if (!empty($this->where)) {
                 $sql .= ' WHERE ' . implode(' AND ', $this->where);
             }
         }
@@ -290,12 +294,12 @@ class DBFlex
         $stmt = $this->pdo->prepare($sql);
 
         $i = 1;
-        foreach($data as $value) {
+        foreach ($data as $value) {
             $stmt->bindValue($i, $value);
             $i++;
         }
 
-        foreach($this->bindings as $value) {
+        foreach ($this->bindings as $value) {
             $stmt->bindValue($i, $value);
             $i++;
         }
@@ -315,7 +319,7 @@ class DBFlex
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         } else {
 
-            if(!empty($this->where)) {
+            if (!empty($this->where)) {
                 $sql .= ' WHERE ' . implode(' AND ', $this->where);
             }
         }
@@ -323,7 +327,7 @@ class DBFlex
         $stmt = $this->pdo->prepare($sql);
 
         $i = 1;
-        foreach($this->bindings as $value) {
+        foreach ($this->bindings as $value) {
             $stmt->bindValue($i, $value);
             $i++;
         }
@@ -346,7 +350,7 @@ class DBFlex
             $sql .= ' WHERE ' . implode(' AND ', $conditions);
         } else {
 
-            if(!empty($this->where)) {
+            if (!empty($this->where)) {
                 $sql .= ' WHERE ' . implode(' AND ', $this->where);
             }
         }
@@ -354,7 +358,7 @@ class DBFlex
         $stmt = $this->pdo->prepare($sql);
 
         $i = 1;
-        foreach($this->bindings as $value) {
+        foreach ($this->bindings as $value) {
             $stmt->bindValue($i, $value);
             $i++;
         }
@@ -364,6 +368,192 @@ class DBFlex
 
         $this->resetState();
         return $result['count'];
+    }
+
+
+    public function find($id, $column = 'id')
+    {
+        return $this->table($this->table)->where($column, $id)->first();
+    }
+
+    public function pluck($column)
+    {
+        $this->select($column);
+        $results = $this->get();
+        return array_column($results, $column);
+    }
+
+
+    public function exists()
+    {
+        return $this->count() > 0;
+    }
+
+    public function doesntExist()
+    {
+        return !$this->exists();
+    }
+
+
+    public function latest($column = 'created_at')
+    {
+        return $this->orderBy($column, 'DESC');
+    }
+
+
+    public function oldest($column = 'created_at')
+    {
+        return $this->orderBy($column, 'ASC');
+    }
+
+    public function value($column)
+    {
+        $this->select($column)->limit(1);
+        $result = $this->get();
+        return !empty($result) ? $result[0][$column] ?? null : null;
+    }
+
+    public function increment($column, $amount = 1)
+    {
+        $sql = "UPDATE $this->table SET $column = $column + ?";
+
+        if (!empty($this->where)) {
+            $sql .= ' WHERE ' . implode(' AND ', $this->where);
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->bindValue(1, $amount);
+
+        $i = 2;
+        foreach ($this->bindings as $value) {
+            $stmt->bindValue($i++, $value);
+        }
+
+        $result = $stmt->execute();
+        $this->resetState();
+        return $result;
+    }
+
+    public function decrement($column, $amount = 1)
+    {
+        return $this->increment($column, -$amount);
+    }
+
+    public function take($limit)
+    {
+        return $this->limit($limit);
+    }
+
+    public function toSql()
+    {
+        return $this->rawSql ?: $this->buildSelectSql();
+    }
+
+    public function truncate()
+    {
+        $sql = "DELETE FROM $this->table";
+        $this->pdo->exec($sql);
+        $this->resetState();
+    }
+
+    public function whereIn($column, array $values)
+    {
+        $placeholders = implode(',', array_fill(0, count($values), '?'));
+        $this->where[] = "$column IN ($placeholders)";
+        $this->bindings = array_merge($this->bindings, $values);
+        return $this;
+    }
+
+    public function orWhereIn($column, array $values)
+    {
+        $placeholders = implode(',', array_fill(0, count($values), '?'));
+        if (empty($this->where)) {
+            $this->where[] = "$column IN ($placeholders)";
+        } else {
+            $last = array_pop($this->where);
+            $this->where[] = "($last OR $column IN ($placeholders))";
+        }
+        $this->bindings = array_merge($this->bindings, $values);
+        return $this;
+    }
+
+    public function max($column)
+    {
+        return $this->aggregate('MAX', $column);
+    }
+
+    public function min($column)
+    {
+        return $this->aggregate('MIN', $column);
+    }
+
+    public function avg($column)
+    {
+        return $this->aggregate('AVG', $column);
+    }
+
+    public function firstOrFail()
+    {
+        $result = $this->first();
+        if (!$result) {
+            throw new Exception("No records found.");
+        }
+        return $result;
+    }
+
+    public function whereNull($column)
+    {
+        $this->where[] = "$column IS NULL";
+        return $this;
+    }
+
+    public function whereNotNull($column)
+    {
+        $this->where[] = "$column IS NOT NULL";
+        return $this;
+    }
+
+    public function run()
+    {
+        $sql = $this->rawSql;
+        $stmt = $this->pdo->prepare($sql);
+
+        foreach ($this->bindings as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
+        }
+
+        $success = $stmt->execute();
+        $this->resetState();
+        return $success;
+    }
+
+    public function execute($sql, $bindings = [])
+    {
+        $stmt = $this->pdo->prepare($sql);
+
+        foreach ($bindings as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
+        }
+
+        $success = $stmt->execute();
+        return $success;
+    }
+
+    public function lastInsertId()
+    {
+        return $this->pdo->lastInsertId();
+    }
+
+    public function transaction(callable $callback)
+    {
+        try {
+            $this->startTransaction();
+            $callback($this);
+            $this->commit();
+        } catch (Exception $e) {
+            $this->rollback();
+            throw $e;
+        }
     }
 
     protected function resetState()

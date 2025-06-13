@@ -1,11 +1,16 @@
 <?php
 
 
-require_once '/../src/DBFlex.php'; 
+require_once __DIR__.'/../src/DBFlex.php'; 
 
-
+$stmt = 
 // Initialize the DB class with  MYSQL database credentials
-$db = new DBFlex('mysql', 'localhost', 'dbuser', 'dbpassword', 'test_db');
+$db = new DBFlex('mysql', 'localhost', 'root', '', 'novels');
+
+
+foreach($rows as $row) {
+    echo $row['name'];
+}
 
 $dbPath = 'sqlite.db';
 // Initialize the DB class with  SQLITE database credentials
@@ -149,6 +154,32 @@ if($db->table('users')->insert($data))
 } else {
     $db->rollback();
 }
+
+// Function Transaction
+try {
+    $db->transaction(function($db) {
+        $db->table('accounts')->where('id', 1)->update(['balance' => 800]);
+        $db->table('accounts')->where('id', 2)->update(['balance' => 1200]);
+    });
+
+    echo "Transaction successful";
+} catch (Exception $e) {
+    echo "Transaction failed: " . $e->getMessage();
+}
+
+
+// RAW SQL
+$db->raw("UPDATE users SET name = ? WHERE id = ?", ['Ahmed', 1])->run();
+
+$db->execute("DELETE FROM users WHERE id = ?", [7]);
+
+// find by ID default column name is ID
+$user = $db->table('users')->find(3);
+
+// find by ID define the column name
+$user = $db->table('users')->find(3, 'user_id');
+
+
 
 
 ?>
