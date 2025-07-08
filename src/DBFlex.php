@@ -15,6 +15,8 @@ class DBFlex
     protected $rawSql = '';
     protected $groupBy = '';
     protected $search = [];
+    protected $rawWheres = [];
+
     protected $pdo;
 
     public function __construct($driver, $dbhost = null, $dbuser = null, $dbpassword = null, $dbname = null, $dbpath = null)
@@ -65,12 +67,41 @@ class DBFlex
         return $this;
     }
 
-    public function where($column, $value, $operator = '=')
+    public function where($column, $operator = null, $value = null)
     {
-        $this->where[] = "$column $operator ?";
-        $this->bindings[] = $value;
+        if (is_array($column)) {
+            // Support array of conditions: [['column', '=', value], ['column2', '!=', value2]]
+            foreach ($column as $condition) {
+                if (is_array($condition) && count($condition) === 3) {
+                    $this->where[] = "{$condition[0]} {$condition[1]} ?";
+                    $this->bindings[] = $condition[2];
+                } else {
+                    throw new InvalidArgumentException('Each condition must be an array with 3 elements: [column, operator, value]');
+                }
+            }
+        } else     if (func_num_args() === 1 && is_string($column)) {
+            $this->where[] = $column;
+        } else {
+            // Normal usage: where('column', '=', value) OR where('column', value)
+            if (func_num_args() === 2) {
+                $value = $operator;
+                $operator = '=';
+            }
+
+            $this->where[] = "$column $operator ?";
+            $this->bindings[] = $value;
+        }
+
         return $this;
     }
+
+    public function whereRaw($condition, $bindings = [])
+    {
+        $this->rawWheres[] = ['condition' => $condition, 'bindings' => $bindings];
+        return $this;
+    }
+
+
 
     public function orderBy($column, $direction = 'ASC')
     {
@@ -168,15 +199,27 @@ class DBFlex
         return $this;
     }
 
-    public function leftJoin($table, $first, $operator, $second)
+    public function leftJoin($table, $first = null, $operator = null, $second = null)
     {
-        return $this->join($table, $first, $operator, $second, 'LEFT');
+        if (func_num_args() === 1) {
+            // Raw join with full ON clause
+            $this->joins[] = "LEFT JOIN {$table}";
+        } else {
+            $this->joins[] = "LEFT JOIN {$table} ON {$first} {$operator} {$second}";
+        }
+        return $this;
     }
-
-    public function rightJoin($table, $first, $operator, $second)
+    
+    public function rightJoin($table, $first = null, $operator = null, $second = null)
     {
-        return $this->join($table, $first, $operator, $second, 'RIGHT');
+        if (func_num_args() === 1) {
+            $this->joins[] = "RIGHT JOIN {$table}";
+        } else {
+            $this->joins[] = "RIGHT JOIN {$table} ON {$first} {$operator} {$second}";
+        }
+        return $this;
     }
+    
 
     public function raw($sql, $bindings = [])
     {
@@ -195,15 +238,26 @@ class DBFlex
             $sql .= ' ' . implode(' ', $this->joins);
         }
 
-        if (!empty($this->search)) {
-            $conditions = array_merge($this->where, $this->search);
-            $sql .= ' WHERE ' . implode(' AND ', $conditions);
-        } else {
+        $whereClauses = [];
 
-            if (!empty($this->where)) {
-                $sql .= ' WHERE ' . implode(' AND ', $this->where);
+        if (!empty($this->where)) {
+            $whereClauses = array_merge($whereClauses, $this->where);
+        }
+
+        if (!empty($this->search)) {
+            $whereClauses = array_merge($whereClauses, $this->search);
+        }
+
+        if (!empty($this->rawWheres)) {
+            foreach ($this->rawWheres as $raw) {
+                $whereClauses[] = $raw['condition'];
             }
         }
+
+        if (!empty($whereClauses)) {
+            $sql .= ' WHERE ' . implode(' AND ', $whereClauses);
+        }
+
 
         if (!empty($this->orderBy)) {
             $sql .= " $this->orderBy";
@@ -224,6 +278,15 @@ class DBFlex
     {
         $sql = $this->rawSql ?: $this->buildSelectSql();
         $stmt = $this->pdo->prepare($sql);
+
+        $allBindings = $this->bindings;
+
+        // Add raw where bindings
+        foreach ($this->rawWheres as $raw) {
+            foreach ($raw['bindings'] as $binding) {
+                $allBindings[] = $binding;
+            }
+        }
 
         foreach ($this->bindings as $i => $val) {
             $stmt->bindValue($i + 1, $val);
@@ -548,11 +611,12 @@ class DBFlex
     {
         try {
             $this->startTransaction();
-            $callback($this);
+            $result = $callback($this);
             $this->commit();
+            return $result;
         } catch (Exception $e) {
             $this->rollback();
-            throw $e;
+            return $e;
         }
     }
 
@@ -569,5 +633,6 @@ class DBFlex
         $this->rawSql = '';
         $this->groupBy = '';
         $this->search = [];
+        $this->rawWheres = [];
     }
 }
