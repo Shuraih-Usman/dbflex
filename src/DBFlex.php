@@ -19,8 +19,22 @@ class DBFlex
 
     protected $pdo;
 
+    protected $driver;
+    protected $dbhost;
+    protected $dbuser;
+    protected $dbpassword;
+    protected $dbname;
+    protected $dbpath;
+
     public function __construct($driver, $dbhost = null, $dbuser = null, $dbpassword = null, $dbname = null, $dbpath = null)
     {
+        $this->driver = $driver;
+        $this->dbhost = $dbhost;
+        $this->dbuser = $dbuser;
+        $this->dbpassword = $dbpassword;
+        $this->dbname = $dbname;
+        $this->dbpath = $dbpath;
+
         if ($driver === 'mysql') {
             $dsn = "mysql:host=$dbhost;dbname=$dbname;charset=utf8";
             $this->pdo = new PDO($dsn, $dbuser, $dbpassword);
@@ -79,7 +93,7 @@ class DBFlex
                     throw new InvalidArgumentException('Each condition must be an array with 3 elements: [column, operator, value]');
                 }
             }
-        } else     if (func_num_args() === 1 && is_string($column)) {
+        } else if (func_num_args() === 1 && is_string($column)) {
             $this->where[] = $column;
         } else {
             // Normal usage: where('column', '=', value) OR where('column', value)
@@ -209,7 +223,7 @@ class DBFlex
         }
         return $this;
     }
-    
+
     public function rightJoin($table, $first = null, $operator = null, $second = null)
     {
         if (func_num_args() === 1) {
@@ -219,7 +233,7 @@ class DBFlex
         }
         return $this;
     }
-    
+
 
     public function raw($sql, $bindings = [])
     {
@@ -605,6 +619,31 @@ class DBFlex
     public function lastInsertId()
     {
         return $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Clone the current query builder state
+     * Useful for reusing the same query configuration for different operations
+     * 
+     * @return DBFlex A new instance with the same query state
+     */
+    public function clone()
+    {
+        $cloned = new self($this->driver, $this->dbhost, $this->dbuser, $this->dbpassword, $this->dbname, $this->dbpath);
+        $cloned->table = $this->table;
+        $cloned->select = $this->select;
+        $cloned->where = $this->where;
+        $cloned->bindings = $this->bindings;
+        $cloned->orderBy = $this->orderBy;
+        $cloned->limit = $this->limit;
+        $cloned->offset = $this->offset;
+        $cloned->joins = $this->joins;
+        $cloned->rawSql = $this->rawSql;
+        $cloned->groupBy = $this->groupBy;
+        $cloned->search = $this->search;
+        $cloned->rawWheres = $this->rawWheres;
+
+        return $cloned;
     }
 
     public function transaction(callable $callback)
